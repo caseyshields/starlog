@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Fundamental Catalog 6</title>
+        <!-- <link href="../site.css" rel="stylesheet" /> -->
+        <style>
+            section {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-rows: 60px 1fr 20px 30px;
+                justify-items: center;
+            }
+            .graticule {
+                stroke: grey;
+                fill: none;
+            }
+            svg {
+                grid-area: 2 / 1 / 3 / 3;
+                pointer-events:all;
+                background: black;
+            }
+            circle { fill:white; }
+            circle.selected { fill: #FF0000; }
+            #title { grid-area: 1 / 1 / 2 / 4; }
+            #ascension { grid-area: 3 / 1 / 4 / 2; }
+            #declination { grid-area: 3 / 2 / 4 / 3; }
+            #info { grid-area: 2 / 3 / 4 / 4; }
+            #note { grid-area: 4 / 1 / 5 / 4; }
+        </style>
+    </head>
+    <body>
+        <section>
+            <h1 id="title"> Fundamental Catalog 6 </h1>
+            <svg width="512" height="512"></svg>
+            <h4 id="ascension"></h4>
+            <h4 id="declination"></h4>
+            <h4 id="info"></h4>
+            <div id="note">
+                <input id="magnitude" type="range" min="0" max="10" step="0.1" />
+            </div>
+            </span>
+        </section>
+        
+        
+        <script src="https://d3js.org/d3.v5.js"></script>
+        <script>
+            let catalog = null; // the FK6 catalog to be rendered
+
+            let svg = d3.select('svg');
+            let ascension = d3.select('#ascension');
+            let declination = d3.select('#declination');
+            let info = d3.select('#info');
+            let width = svg.attr('width');
+            let height = svg.attr('height');
+            let scale = 1.0;
+            let dragStart = null; // used for calculating drag vector for setting the rotation
+
+            let magnitude = d3.select('#magnitude').on('change', slider);
+
+            // define a scale for visual magnitude
+            let magnitudeScale = d3.scaleLinear()
+                .range( [1,5] );
+
+            // we need to map celestial coordinates to lon/lat 
+            rightAscensionScale = d3.scaleLinear()
+                .domain([0, 24])
+                .range([0,360]);
+
+            var lambda = d3.scaleLinear()
+                .domain([-width, width])
+                .range([-180, 180]);
+    
+            var phi = d3.scaleLinear()
+                .domain([-height, height])
+                .range([90, -90]);
+
+            // a stereographic projection is how stars would map to a plane if you were looking from inside the sphere.
+            // in this case we are using a celestial sphere instead of terrestrial one
+            let stereographic = d3.geoStereographic()
+                .translate( [width/2, height/2] )
+                .scale( width )
+                .clipAngle(90);
+
+            let path = d3.geoPath()
+                .projection( stereographic );
+
+            // add a path the draw the sphere's marking under the star field
+            svg.append('path')
+                .attr('class', 'graticule' )
+                .datum( d3.geoGraticule().step([15, 10]) );
+
+            svg.append('path')
+                .attr('class', 'latitude')
+                .attr('class', )
+            
+            // add a group to put the stars in and make a selection for subsequent elelments
+            let stars = svg.append('g')
+                .attr('class', 'stars')
+                .selectAll('circle');
+
+            // load our data set
+            d3.json("stars.json").then(function(fk6) {
+                catalog = fk6;
+
+                // convert arc hour, minute, seconds to degrees
+                for (star of catalog) {
+                    star.ra = star.RAh + (star.RAm/60.0) + (star.RAs/3600.0);
+                    star.dec = star.DEd + (star.DEm/60.0) + (star.DEs/3600.0);
+                    if(star['DE-']=='-')
+                        star.dec*=-1;
+                    // console.log([star.ra,star.dec]);
+                }
+
+                // find range of visual magnitudes
+                let range = d3.extent(catalog, (d)=>d.Vmag );
+                magnitudeScale.domain( [range[1], range[0]] );
+                magnitude
+                    .attr('min', range[0] )
+                    .attr('max', range[1] )
+                    .attr('step', (range[1]-range[0]) / 100.0 );
+                // console.log( range );
+
+                render();
+            });
+
+            // add mouse interactivity to screen and stars
+            svg.call( d3.drag()
+                .on('start', started)
+                .on('drag', dragged)
+                .on('end', ended) );
+            svg.call( d3.zoom()
+                    .on("zoom", wheel )
+                    //.extent( [1, w] )
+                );
+                // .on('wheel.zoom', null); // this consumes the event and prevents it from being sent to the page?
+            svg.on('mousemove', move);
+
+            function render() {
+
+                // draw celestial sphere's lines of ascension and declination
+                svg.select('.graticule')
+                    .attr('d', path);
+
+                if (!catalog) return;
+
+                // join all star data to stars in our dom
+                stars = stars.data( catalog );
+
+                // remove filtered stars from the dom
+                stars.exit().remove();
+
+                stars = stars.enter()
+                    .append('circle')
+                        .on('click', click )
+                    .merge( stars )
+                        .attr('r', function(d) {return Math.round( magnitudeScale(d.Vmag) );} );
+
+                stars.each( function(d) {
+                    let lon = rightAscensionScale(d.ra)
+                    let S = stereographic( [-lon, d.dec] ); // need to flip longitude because we are in the celestial sphere
+                    // console.log( S );
+                    d3.select(this)
+                        .attr('cx', S[0])
+                        .attr('cy', S[1]);
+                } );
+                
+            }
+
+            // clicking a star causes it's data to be displayed
+            function click(star) {
+                if (star) {
+                    d3.selectAll('.selected').classed('selected', false);
+                    info.html( JSON.stringify( star, null, '<br>') );
+                    d3.select(this).classed('selected', true);
+                }
+                else info.html('');
+            }
+
+            // update the cursor information with where the mouse is ointing in the projection
+            function move() {
+                // get the location of the cursor in the SVG element
+                Ps = d3.mouse(this);
+                Pw = stereographic.invert( Ps )
+                Pc = [ rightAscensionScale.invert(Pw[0]), Pw[1] ];
+                ascension.html( Pc[0] );
+                declination.html( Pc[1] );
+            }
+
+            // these drag callbacks update a rotation applied to the projection
+            function started() { dragStart = d3.mouse(this); }
+            function dragged() {
+                // get coordinates of mouse event in svg container
+                let dragEnd = d3.mouse(this);
+
+                // abort if this is the first point of the drag
+                if(!dragStart) { dragStart = dragEnd; return; }
+
+                // get the distance dragged on the screen, scaled by the zoom
+                Dx = lambda( dragEnd[0]-dragStart[0] ) / scale;
+                Dy = phi( dragEnd[1]-dragStart[1] ) / scale;
+
+                // add it to the current transformation
+                let last = stereographic.rotate();
+                last = [last[0] + Dx, last[1] + Dy];
+
+                // update the projection
+                stereographic.rotate( last );
+                render();
+
+                // update the drag point
+                dragStart = dragEnd;
+            }
+            function ended() { dragStart = null; }
+
+            // the mouse wheel adjusts the field of view
+            function wheel() {
+                scale = d3.event.transform.k;
+                stereographic.scale( scale * width );
+                stereographic.clipAngle( scale * 90.0 );
+                render();
+            }
+
+            function slider(event) {
+                console.log( magnitude.property('value') );
+            }
+
+        </script>
+    </body>
+</html>

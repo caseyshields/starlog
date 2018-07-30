@@ -1,0 +1,27 @@
+{
+  "name": "star-catalog",
+  "version": "1.0.0",
+  "description": "service for FK6 astrometry data",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caseyshields/star-catalog.git"
+  },
+  "keywords": [
+    "Hipparcos",
+    "FK6",
+    "astrometry"
+  ],
+  "author": "Casey Shields",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/caseyshields/star-catalog/issues"
+  },
+  "homepage": "https://github.com/caseyshields/star-catalog#readme",
+  "dependencies": {
+    "express": "^4.16.3"
+  }
+}
