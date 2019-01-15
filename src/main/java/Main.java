@@ -9,16 +9,13 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 
 import static j2html.TagCreator.*;
-import static org.eclipse.jetty.http.HttpParser.LOG;
 import static spark.Spark.*;
 
 public class Main {
 
     private static ArrayList<JSONObject> catalog = new ArrayList<>();
 
-    // add get service path for retrieving catalog entries
-    // add path for serving star browsing application...
-    // Add get path for retrieving zenith position which employs native libraries
+    // A hello world which prints out the FK6 star catalog
     public static void main(String[] args) {
 
         // set the server port
@@ -88,9 +85,8 @@ public class Main {
             return "error";
         } );
 
+        // Add get path for retrieving zenith position which employs native libraries..
         get( "/api/zenith", (request, response) -> {
-
-
             halt( 500, "Casey is lazy" );
             return null;
         } );

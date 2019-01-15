@@ -30,7 +30,7 @@ let options = {
   redirect: false
 }
 app.use( express.static('../public', options) );
-app.listen( 3001 );
+app.listen( 43210 );
 
 // node http single file server
 // console.log("starting server.");
